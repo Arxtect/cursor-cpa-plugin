@@ -3,6 +3,7 @@
 [![AI-Assisted Development](https://img.shields.io/badge/AI--Assisted-Development-blueviolet?style=flat-square&logo=openai)](https://github.com/kilolonion/cursor-cpa-plugin)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-%3E%3D1.24-00ADD8?style=flat-square&logo=go)](go.mod)
+[![LINUX DO](https://img.shields.io/badge/LINUX-DO-FFB003.svg)](https://linux.do)
 
 **🤖 AI-Assisted Development** · 本项目的自研补丁开发、测试验证与文档编写由 AI 辅助完成
 
@@ -187,6 +188,8 @@ MIT License — 详见 [LICENSE](LICENSE)
 - 自研补丁：Copyright (c) 2026 kilolonion
 
 ## 致谢与来源
+
+- **社区支持**：本项目通过 [LINUX DO](https://linux.do) 社区开源推广，感谢社区提供交流平台
 
 - **上游仓库**：[yobo2u/omsub](https://github.com/yobo2u/omsub)（cursor 分支）
 - **协议参考**：[opencodex](https://github.com/lidge-jun/opencodex)（MIT License）
