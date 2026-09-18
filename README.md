@@ -72,23 +72,53 @@ Please answer directly in text using your knowledge without attempting to invoke
 
 ## 安装
 
-### 从 Release 安装
+### 方式一：install.sh 一键安装（推荐）
 
-下载最新 Release 的 Linux amd64 包：
+下载并解压完整包，运行自带的安装脚本：
+
+```sh
+curl -LO https://github.com/kilolonion/cursor-cpa-plugin/releases/download/v0.6.1-enhanced/cursor-plugin-0.6.1-enhanced-linux-amd64.tar.gz
+tar -xzf cursor-plugin-0.6.1-enhanced-linux-amd64.tar.gz
+cd cursor-plugin-0.6.1-enhanced-linux-amd64
+
+sudo ./install.sh --plugins-dir /opt/cpa-manager-plus/cliproxyapi/plugins
+```
+
+脚本会：
+
+- 按当前系统架构自动选择 `bin/<os>/<arch>/cursor.so`
+- 把已有插件备份到 `.cursor-backups/`
+- 原子写入目标文件，避免写入中断留下半成品
+
+卸载：
+
+```sh
+sudo ./uninstall.sh --plugins-dir /opt/cpa-manager-plus/cliproxyapi/plugins
+```
+
+卸载不会删除二进制，而是移到 `.cursor-uninstalled/`，方便回退。
+
+### 方式二：手动复制
+
+只需插件二进制时，可下载商店格式的 ZIP：
 
 ```sh
 curl -LO https://github.com/kilolonion/cursor-cpa-plugin/releases/download/v0.6.1-enhanced/cursor_0.6.1-enhanced_linux_amd64.zip
 unzip cursor_0.6.1-enhanced_linux_amd64.zip -d cursor-plugin
-```
 
-将 `cursor.so` 复制到 CLIProxyAPI 插件目录：
-
-```sh
 sudo mkdir -p /opt/cpa-manager-plus/cliproxyapi/plugins/linux/amd64
 sudo cp cursor-plugin/cursor.so /opt/cpa-manager-plus/cliproxyapi/plugins/linux/amd64/
 ```
 
-在 `config.yaml` 中启用插件：
+### 校验下载文件
+
+```sh
+sha256sum -c checksums.txt
+```
+
+### 启用插件
+
+在 `config.yaml` 中启用：
 
 ```yaml
 plugins:
@@ -105,6 +135,10 @@ plugins:
 ```sh
 docker restart cli-proxy-api
 ```
+
+### 平台支持
+
+当前 Release 只提供 **Linux amd64** 构建。其他平台需要自行编译。
 
 ### 从源码构建
 
