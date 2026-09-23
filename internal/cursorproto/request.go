@@ -35,6 +35,7 @@ type RequestEnvironment struct {
 	TimeZone       string
 	WorkspacePaths []string
 	ProjectFolder  string
+	Tools          []ToolDefinition
 }
 
 func EncodeRunRequest(request RunRequest) ([]byte, error) {
@@ -194,6 +195,7 @@ func addRequestContext(parent protoreflect.Message, request RunRequest) error {
 	}
 	if err := populateRequestContext(requestContext, RequestEnvironment{
 		TimeZone: request.TimeZone, WorkspacePaths: request.WorkspacePaths, ProjectFolder: request.ProjectFolder,
+		Tools: request.Tools,
 	}); err != nil {
 		return err
 	}
@@ -231,7 +233,7 @@ func populateRequestContext(requestContext protoreflect.Message, request Request
 	if err := setMessage(requestContext, "env", environment); err != nil {
 		return err
 	}
-	return nil
+	return appendToolDefinitions(requestContext, "tools", request.Tools)
 }
 
 func EncodeClientHeartbeat() ([]byte, error) {

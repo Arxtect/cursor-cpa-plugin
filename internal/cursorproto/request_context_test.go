@@ -1,6 +1,7 @@
 package cursorproto
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -29,6 +30,7 @@ func Test_ReplyRequestContext_returns_runtime_environment_for_exec_request(t *te
 		TimeZone:       "Asia/Shanghai",
 		WorkspacePaths: []string{"/CLIProxyAPI"},
 		ProjectFolder:  "/root/.cursor/projects/CLIProxyAPI",
+		Tools:          []ToolDefinition{{Name: "lookup", Description: "Look up a key", Parameters: json.RawMessage(`{"type":"object"}`)}},
 	})
 
 	require.NoError(t, err)
@@ -48,6 +50,9 @@ func Test_ReplyRequestContext_returns_runtime_environment_for_exec_request(t *te
 	require.Equal(t, 1, workspacePaths.Len())
 	require.Equal(t, "/CLIProxyAPI", workspacePaths.Get(0).String())
 	require.Equal(t, "/root/.cursor/projects/CLIProxyAPI", environment.Get(field(environment, "project_folder")).String())
+	tools := requestContext.Get(field(requestContext, "tools")).List()
+	require.Equal(t, 1, tools.Len())
+	require.Equal(t, "lookup", tools.Get(0).Message().Get(field(tools.Get(0).Message(), "tool_name")).String())
 }
 
 func Test_ReplyRequestContext_ignores_other_server_messages(t *testing.T) {

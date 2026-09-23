@@ -48,6 +48,7 @@ func (client *Client) Run(
 	result := RunResult{ConversationID: conversationID}
 	environment := cursorproto.RequestEnvironment{
 		TimeZone: "UTC", WorkspacePaths: []string{client.workspacePath}, ProjectFolder: client.projectFolder,
+		Tools: input.Tools,
 	}
 	runPayload, err := cursorproto.EncodeRunRequest(cursorproto.RunRequest{
 		ConversationID: conversationID,

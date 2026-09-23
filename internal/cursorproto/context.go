@@ -36,11 +36,18 @@ func addTools(run protoreflect.Message, tools []ToolDefinition) error {
 	if err != nil {
 		return err
 	}
+	if err := appendToolDefinitions(catalog, "mcp_tools", tools); err != nil {
+		return err
+	}
+	return setMessage(run, "mcp_tools", catalog)
+}
+
+func appendToolDefinitions(parent protoreflect.Message, name protoreflect.Name, tools []ToolDefinition) error {
 	for _, tool := range tools {
 		if tool.Name == "" {
 			return fmt.Errorf("Cursor tool name is required")
 		}
-		definition, err := nestedMessage(catalog, "mcp_tools")
+		definition, err := nestedMessage(parent, name)
 		if err != nil {
 			return err
 		}
@@ -58,11 +65,11 @@ func addTools(run protoreflect.Message, tools []ToolDefinition) error {
 		if err := setBytes(definition, "input_schema", schema); err != nil {
 			return err
 		}
-		if err := appendMessage(catalog, "mcp_tools", definition); err != nil {
+		if err := appendMessage(parent, name, definition); err != nil {
 			return err
 		}
 	}
-	return setMessage(run, "mcp_tools", catalog)
+	return nil
 }
 
 func encodeSchema(raw json.RawMessage) ([]byte, error) {
