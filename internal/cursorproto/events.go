@@ -142,6 +142,20 @@ func decodeInteraction(interaction protoreflect.Message) (ServerEvent, error) {
 
 func pendingToolCallType(name protoreflect.Name, update protoreflect.Message) string {
 	label := "interaction_update." + string(name)
+	if name == "partial_tool_call" {
+		argsField := update.Descriptor().Fields().ByName("args_text_delta")
+		if argsField != nil {
+			text := update.Get(argsField).String()
+			switch {
+			case text == "":
+				label += ".empty_args"
+			case json.Valid([]byte(text)):
+				label += ".json_args"
+			default:
+				label += ".fragment_args"
+			}
+		}
+	}
 	toolField := update.Descriptor().Fields().ByName("tool_call")
 	if toolField == nil || !update.Has(toolField) {
 		return label

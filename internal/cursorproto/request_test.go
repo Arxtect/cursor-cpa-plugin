@@ -183,6 +183,26 @@ func Test_DecodeServerEvent_names_pending_native_tool(t *testing.T) {
 	require.Equal(t, "interaction_update.tool_call_started.shell_tool_call", event.Type)
 }
 
+func Test_DecodeServerEvent_classifies_partial_tool_arguments_without_logging_them(t *testing.T) {
+	server, err := newMessage("AgentServerMessage")
+	require.NoError(t, err)
+	interaction, err := nestedMessage(server, "interaction_update")
+	require.NoError(t, err)
+	partial, err := nestedMessage(interaction, "partial_tool_call")
+	require.NoError(t, err)
+	require.NoError(t, setString(partial, "args_text_delta", `{"command":"private-command"}`))
+	require.NoError(t, setMessage(interaction, "partial_tool_call", partial))
+	require.NoError(t, setMessage(server, "interaction_update", interaction))
+	raw, err := proto.Marshal(server)
+	require.NoError(t, err)
+
+	event, err := DecodeServerEvent(raw)
+	require.NoError(t, err)
+	require.Equal(t, EventIgnored, event.Kind)
+	require.Equal(t, "interaction_update.partial_tool_call.json_args", event.Type)
+	require.NotContains(t, event.Type, "private-command")
+}
+
 func Test_DecodeServerEvent_maps_completed_mcp_tool_call(t *testing.T) {
 	server, err := newMessage("AgentServerMessage")
 	require.NoError(t, err)
