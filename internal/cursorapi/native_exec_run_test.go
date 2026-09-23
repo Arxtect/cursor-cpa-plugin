@@ -3,6 +3,7 @@ package cursorapi
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"sync"
@@ -14,6 +15,31 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protowire"
 )
+
+func Test_Client_Run_exposes_native_shell_as_declared_client_tool(t *testing.T) {
+	transport := roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+		if _, err := readConnectPayloadRaw(request.Body); err != nil {
+			return nil, err
+		}
+		return responseWithBody(http.StatusOK, connectFrame(nativeShellExecMessage(43, "exec-shell", 14, "pwd", "/workspace"))), nil
+	})
+	client := newTestClient(t, transport, Config{OverallTimeout: 2 * time.Second})
+	input := validRunInput()
+	input.Tools = []cursorproto.ToolDefinition{{Name: "Bash", Parameters: json.RawMessage(`{"type":"object","properties":{"command":{"type":"string"}},"required":["command"]}`)}}
+	var events []cursorproto.ServerEvent
+
+	result, err := client.Run(context.Background(), input, func(event cursorproto.ServerEvent) error {
+		events = append(events, event)
+		return nil
+	})
+
+	require.NoError(t, err)
+	require.True(t, result.ToolExposed)
+	require.Len(t, events, 1)
+	require.Equal(t, cursorproto.EventToolCall, events[0].Kind)
+	require.Equal(t, "Bash", events[0].Name)
+	require.JSONEq(t, `{"command":"cd '/workspace' && pwd"}`, events[0].Arguments)
+}
 
 func Test_Client_Run_replies_to_native_grep_read_and_shell_stream_without_stalling(t *testing.T) {
 	body := &nativeReadOnlyBody{

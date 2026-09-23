@@ -1,12 +1,47 @@
 package cursorproto
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
+
+func Test_DecodeNativeClientToolCall_maps_declared_client_tools(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		raw  []byte
+		tool ToolDefinition
+		want string
+	}{
+		{name: "shell", raw: encodeNativeShellExecRequest(t, 51, "exec-51", "shell_stream_args", "pwd", "/workspace"), tool: ToolDefinition{Name: "Bash", Parameters: json.RawMessage(`{"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string"}},"required":["command"]}`)}, want: `{"command":"cd '/workspace' && pwd","description":"Run the shell command requested by Cursor"}`},
+		{name: "grep", raw: encodeNativeReadOnlyExecRequest(t, 41, "exec-41", "grep_args", "/workspace"), tool: ToolDefinition{Name: "Grep", Parameters: json.RawMessage(`{"type":"object","properties":{"pattern":{"type":"string"},"path":{"type":"string"}},"required":["pattern"]}`)}, want: `{"pattern":"needle","path":"/workspace"}`},
+		{name: "read", raw: encodeNativeReadOnlyExecRequest(t, 42, "exec-42", "read_args", "/workspace/a.txt"), tool: ToolDefinition{Name: "Read", Parameters: json.RawMessage(`{"type":"object","properties":{"file_path":{"type":"string"}},"required":["file_path"]}`)}, want: `{"file_path":"/workspace/a.txt"}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			event, handled, err := DecodeNativeClientToolCall(test.raw, []ToolDefinition{test.tool})
+			require.NoError(t, err)
+			require.True(t, handled)
+			require.Equal(t, EventToolCall, event.Kind)
+			require.Equal(t, test.tool.Name, event.Name)
+			require.JSONEq(t, test.want, event.Arguments)
+		})
+	}
+}
+
+func Test_DecodeNativeClientToolCall_does_not_invent_undeclared_or_incompatible_tool(t *testing.T) {
+	raw := encodeNativeReadOnlyExecRequest(t, 41, "exec-41", "grep_args", "/workspace")
+	for _, tool := range []ToolDefinition{
+		{Name: "Grep", Parameters: json.RawMessage(`{"type":"object","properties":{"pattern":{"type":"string"}},"required":["pattern"]}`)},
+		{Name: "lookup", Parameters: json.RawMessage(`{"type":"object","properties":{"pattern":{"type":"string"}}}`)},
+	} {
+		_, handled, err := DecodeNativeClientToolCall(raw, []ToolDefinition{tool})
+		require.NoError(t, err)
+		require.False(t, handled)
+	}
+}
 
 func Test_ReplyNativeReadOnlyExec_returns_typed_policy_result_for_grep_and_read(t *testing.T) {
 	for _, test := range []struct {

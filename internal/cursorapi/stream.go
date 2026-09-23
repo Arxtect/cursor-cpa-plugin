@@ -158,35 +158,41 @@ func (state *streamState) handleFrame(
 			return false, context.Cause(ctx)
 		}
 	}
-	reply, handled, err = cursorproto.ReplyNativeReadOnlyExec(frame.Payload)
+	event, bridged, err := cursorproto.DecodeNativeClientToolCall(frame.Payload, environment.Tools)
 	if err != nil {
 		return false, err
 	}
-	if handled {
-		select {
-		case outbound <- reply:
-			watchdogs.sawProgress()
-		case <-ctx.Done():
-			return false, context.Cause(ctx)
+	if !bridged {
+		reply, handled, err = cursorproto.ReplyNativeReadOnlyExec(frame.Payload)
+		if err != nil {
+			return false, err
 		}
-	}
-	shellReplies, handled, err := cursorproto.ReplyNativeShellExec(frame.Payload)
-	if err != nil {
-		return false, err
-	}
-	if handled {
-		for _, shellReply := range shellReplies {
+		if handled {
 			select {
-			case outbound <- shellReply:
+			case outbound <- reply:
 				watchdogs.sawProgress()
 			case <-ctx.Done():
 				return false, context.Cause(ctx)
 			}
 		}
-	}
-	event, err := cursorproto.DecodeServerEvent(frame.Payload)
-	if err != nil {
-		return false, err
+		shellReplies, handled, err := cursorproto.ReplyNativeShellExec(frame.Payload)
+		if err != nil {
+			return false, err
+		}
+		if handled {
+			for _, shellReply := range shellReplies {
+				select {
+				case outbound <- shellReply:
+					watchdogs.sawProgress()
+				case <-ctx.Done():
+					return false, context.Cause(ctx)
+				}
+			}
+		}
+		event, err = cursorproto.DecodeServerEvent(frame.Payload)
+		if err != nil {
+			return false, err
+		}
 	}
 	state.recordEvent(event)
 	if event.Kind == cursorproto.EventCheckpoint {
