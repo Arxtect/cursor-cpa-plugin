@@ -31,7 +31,10 @@ func (handler *Handler) execute(ctx context.Context, raw []byte) (any, error) {
 		case cursorproto.EventText:
 			turn.AddText(event.Text)
 		case cursorproto.EventThinking:
-			turn.AddReasoning(event.Text)
+			// Cursor does not provide an Anthropic thinking signature for replay.
+			if request.SourceFormat != "claude" && request.SourceFormat != "anthropic" {
+				turn.AddReasoning(event.Text)
+			}
 		case cursorproto.EventImage:
 			turn.AddImage(event.MIMEType, event.ImageData)
 		case cursorproto.EventToolCall:
@@ -110,6 +113,9 @@ func (handler *Handler) runStream(parent context.Context, request executorReques
 			toolCallSeen = true
 			return nil
 		case cursorproto.EventThinking:
+			if request.SourceFormat == "claude" || request.SourceFormat == "anthropic" {
+				return nil
+			}
 			chunk, err := turn.StreamReasoning(event.Text)
 			if err != nil {
 				return err
