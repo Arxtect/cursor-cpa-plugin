@@ -155,6 +155,30 @@ func Test_DecodeServerEvent_names_ignored_interaction_update(t *testing.T) {
 	require.Equal(t, "interaction_update.tool_call_started", event.Type)
 }
 
+func Test_DecodeServerEvent_names_pending_native_tool(t *testing.T) {
+	server, err := newMessage("AgentServerMessage")
+	require.NoError(t, err)
+	interaction, err := nestedMessage(server, "interaction_update")
+	require.NoError(t, err)
+	started, err := nestedMessage(interaction, "tool_call_started")
+	require.NoError(t, err)
+	toolCall, err := nestedMessage(started, "tool_call")
+	require.NoError(t, err)
+	shell, err := nestedMessage(toolCall, "shell_tool_call")
+	require.NoError(t, err)
+	require.NoError(t, setMessage(toolCall, "shell_tool_call", shell))
+	require.NoError(t, setMessage(started, "tool_call", toolCall))
+	require.NoError(t, setMessage(interaction, "tool_call_started", started))
+	require.NoError(t, setMessage(server, "interaction_update", interaction))
+	raw, err := proto.Marshal(server)
+	require.NoError(t, err)
+
+	event, err := DecodeServerEvent(raw)
+	require.NoError(t, err)
+	require.Equal(t, EventIgnored, event.Kind)
+	require.Equal(t, "interaction_update.tool_call_started.shell_tool_call", event.Type)
+}
+
 func Test_DecodeServerEvent_maps_completed_mcp_tool_call(t *testing.T) {
 	server, err := newMessage("AgentServerMessage")
 	require.NoError(t, err)

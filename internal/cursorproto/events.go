@@ -133,9 +133,25 @@ func decodeInteraction(interaction protoreflect.Message) (ServerEvent, error) {
 	switch active.Name() {
 	case "text_delta", "thinking_delta", "token_delta", "tool_call_completed", "turn_ended":
 		return eventFromField(active.Name(), interaction.Get(active).Message())
+	case "tool_call_started", "partial_tool_call":
+		return ServerEvent{Kind: EventIgnored, Type: pendingToolCallType(active.Name(), interaction.Get(active).Message())}, nil
 	default:
 		return ServerEvent{Kind: EventIgnored, Type: "interaction_update." + string(active.Name())}, nil
 	}
+}
+
+func pendingToolCallType(name protoreflect.Name, update protoreflect.Message) string {
+	label := "interaction_update." + string(name)
+	toolField := update.Descriptor().Fields().ByName("tool_call")
+	if toolField == nil || !update.Has(toolField) {
+		return label
+	}
+	toolCall := update.Get(toolField).Message()
+	tool := toolCall.WhichOneof(toolCall.Descriptor().Oneofs().ByName("tool"))
+	if tool == nil {
+		return label
+	}
+	return label + "." + string(tool.Name())
 }
 
 func eventFromField(name protoreflect.Name, message protoreflect.Message) (ServerEvent, error) {
