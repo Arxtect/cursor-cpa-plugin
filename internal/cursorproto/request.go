@@ -156,18 +156,15 @@ func buildAction(run protoreflect.Message, request RunRequest) (protoreflect.Mes
 	if err != nil {
 		return nil, err
 	}
-	prompt := request.Prompt
-	if len(request.Tools) == 0 {
-		// No tool surface is exposed, so steer the model away from attempting
-		// Cursor-native tool or web-search calls that this bridge cannot serve.
-		const constraint = "<system_constraint>\nNOTE: This is a direct conversational session with no tool execution environment. Please answer directly in text using your knowledge without attempting to invoke tools or web search.\n</system_constraint>"
-		if request.Mode == FullReplay && request.System != "" {
-			prompt = constraint + "\n\n" + request.System + "\n\n" + prompt
-		} else {
-			prompt = constraint + "\n\n" + prompt
-		}
-	} else if request.Mode == FullReplay && request.System != "" {
-		prompt = request.System + "\n\n" + prompt
+	// Cursor's built-in tools run on the gateway, which does not have the
+	// caller's workspace. Keep the agent on the tools actually exposed here.
+	constraint := "<system_constraint>\nNOTE: This is a direct conversational session with no tool execution environment. Please answer directly in text using your knowledge without attempting to invoke tools or web search.\n</system_constraint>"
+	if len(request.Tools) > 0 {
+		constraint = "<system_constraint>\nUse only the client-provided MCP tools declared for this request. Cursor-native grep, read, shell, and web-search tools cannot access the caller's environment; do not invoke or retry them. If the provided tools cannot perform a needed operation, explain the limitation instead of trying a Cursor-native tool.\n</system_constraint>"
+	}
+	prompt := constraint + "\n\n" + request.Prompt
+	if request.Mode == FullReplay && request.System != "" {
+		prompt = constraint + "\n\n" + request.System + "\n\n" + request.Prompt
 	}
 	if err := setString(userMessage, "text", prompt); err != nil {
 		return nil, err

@@ -85,6 +85,8 @@ func Test_EncodeRunRequest_registers_tools_images_and_file_attachments(t *testin
 	action := run.Get(field(run, "action")).Message()
 	userAction := action.Get(field(action, "user_message_action")).Message()
 	userMessage := userAction.Get(field(userAction, "user_message")).Message()
+	require.Contains(t, userMessage.Get(field(userMessage, "text")).String(), "Use only the client-provided MCP tools")
+	require.Contains(t, userMessage.Get(field(userMessage, "text")).String(), "Inspect the attachments")
 	selected := userMessage.Get(field(userMessage, "selected_context")).Message()
 	require.Equal(t, 1, selected.Get(field(selected, "selected_images")).List().Len())
 	image := selected.Get(field(selected, "selected_images")).List().Get(0).Message()
