@@ -61,9 +61,9 @@ func Test_EncodeRunRequest_registers_tools_images_and_file_attachments(t *testin
 		Model:          "auto",
 		Prompt:         "Inspect the attachments",
 		Tools: []ToolDefinition{{
-			Name:        "read_file",
-			Description: "Read a file",
-			Parameters:  json.RawMessage(`{"type":"object","properties":{"path":{"type":"string"}}}`),
+			Name:        "lookup",
+			Description: "Look up a key",
+			Parameters:  json.RawMessage(`{"type":"object","properties":{"key":{"type":"string"}}}`),
 		}},
 		Images:      []ImageAttachment{{Name: "image.png", MIMEType: "image/png", Data: []byte("image")}},
 		Attachments: []FileAttachment{{Name: "notes.txt", Content: "notes"}},
@@ -79,7 +79,7 @@ func Test_EncodeRunRequest_registers_tools_images_and_file_attachments(t *testin
 	mcpTools := run.Get(field(run, "mcp_tools")).Message().Get(field(run.Get(field(run, "mcp_tools")).Message(), "mcp_tools")).List()
 	require.Equal(t, 1, mcpTools.Len())
 	tool := mcpTools.Get(0).Message()
-	require.Equal(t, "read_file", tool.Get(field(tool, "tool_name")).String())
+	require.Equal(t, "lookup", tool.Get(field(tool, "tool_name")).String())
 	require.NotEmpty(t, tool.Get(field(tool, "input_schema")).Bytes())
 
 	action := run.Get(field(run, "action")).Message()
@@ -90,7 +90,7 @@ func Test_EncodeRunRequest_registers_tools_images_and_file_attachments(t *testin
 	requestContext := userAction.Get(field(userAction, "request_context")).Message()
 	contextTools := requestContext.Get(field(requestContext, "tools")).List()
 	require.Equal(t, 1, contextTools.Len())
-	require.Equal(t, "read_file", contextTools.Get(0).Message().Get(field(contextTools.Get(0).Message(), "tool_name")).String())
+	require.Equal(t, "lookup", contextTools.Get(0).Message().Get(field(contextTools.Get(0).Message(), "tool_name")).String())
 	selected := userMessage.Get(field(userMessage, "selected_context")).Message()
 	require.Equal(t, 1, selected.Get(field(selected, "selected_images")).List().Len())
 	image := selected.Get(field(selected, "selected_images")).List().Get(0).Message()
@@ -100,6 +100,32 @@ func Test_EncodeRunRequest_registers_tools_images_and_file_attachments(t *testin
 	file := selected.Get(field(selected, "files")).List().Get(0).Message()
 	require.Equal(t, "notes.txt", file.Get(field(file, "path")).String())
 	require.Equal(t, "notes", file.Get(field(file, "content")).String())
+}
+
+func Test_EncodeRunRequest_uses_native_cursor_catalog_for_client_shell_and_read_tools(t *testing.T) {
+	request := RunRequest{
+		ConversationID: "cursor_conversation",
+		MessageID:      "message-1",
+		Model:          "auto",
+		Prompt:         "Read a file",
+		Tools: []ToolDefinition{
+			{Name: "Bash", Parameters: json.RawMessage(`{"type":"object","properties":{"command":{"type":"string"}}}`)},
+			{Name: "Grep", Parameters: json.RawMessage(`{"type":"object","properties":{"pattern":{"type":"string"}}}`)},
+			{Name: "Read", Parameters: json.RawMessage(`{"type":"object","properties":{"file_path":{"type":"string"}}}`)},
+		},
+	}
+
+	raw, err := EncodeRunRequest(request)
+	require.NoError(t, err)
+	client, err := newMessage("AgentClientMessage")
+	require.NoError(t, err)
+	require.NoError(t, proto.Unmarshal(raw, client))
+	run := client.Get(field(client, "run_request")).Message()
+	require.False(t, run.Has(field(run, "mcp_tools")))
+	action := run.Get(field(run, "action")).Message()
+	userAction := action.Get(field(action, "user_message_action")).Message()
+	context := userAction.Get(field(userAction, "request_context")).Message()
+	require.Zero(t, context.Get(field(context, "tools")).List().Len())
 }
 
 func Test_DecodeServerEvent_maps_text_and_turn_end(t *testing.T) {

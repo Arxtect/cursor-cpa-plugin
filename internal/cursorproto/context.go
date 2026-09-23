@@ -3,6 +3,7 @@ package cursorproto
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -29,7 +30,7 @@ type FileAttachment struct {
 }
 
 func addTools(run protoreflect.Message, tools []ToolDefinition) error {
-	if len(tools) == 0 {
+	if len(cursorMCPTools(tools)) == 0 {
 		return nil
 	}
 	catalog, err := nestedMessage(run, "mcp_tools")
@@ -43,7 +44,7 @@ func addTools(run protoreflect.Message, tools []ToolDefinition) error {
 }
 
 func appendToolDefinitions(parent protoreflect.Message, name protoreflect.Name, tools []ToolDefinition) error {
-	for _, tool := range tools {
+	for _, tool := range cursorMCPTools(tools) {
 		if tool.Name == "" {
 			return fmt.Errorf("Cursor tool name is required")
 		}
@@ -70,6 +71,20 @@ func appendToolDefinitions(parent protoreflect.Message, name protoreflect.Name, 
 		}
 	}
 	return nil
+}
+
+func cursorMCPTools(tools []ToolDefinition) []ToolDefinition {
+	result := make([]ToolDefinition, 0, len(tools))
+	for _, tool := range tools {
+		switch strings.ToLower(tool.Name) {
+		case "bash", "shell", "shell_command", "exec_command", "grep", "read", "read_file":
+			// Cursor already exposes these operations natively. Their exec
+			// requests are mapped back to the caller's declared tool.
+		default:
+			result = append(result, tool)
+		}
+	}
+	return result
 }
 
 func encodeSchema(raw json.RawMessage) ([]byte, error) {
