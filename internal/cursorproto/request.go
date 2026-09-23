@@ -161,7 +161,7 @@ func buildAction(run protoreflect.Message, request RunRequest) (protoreflect.Mes
 	// caller's workspace. Keep the agent on the tools actually exposed here.
 	constraint := "<system_constraint>\nNOTE: This is a direct conversational session with no tool execution environment. Please answer directly in text using your knowledge without attempting to invoke tools or web search.\n</system_constraint>"
 	if len(request.Tools) > 0 {
-		constraint = "<system_constraint>\nUse only the client-provided MCP tools declared for this request. Cursor-native grep, read, shell, and web-search tools cannot access the caller's environment; do not invoke or retry them. If the provided tools cannot perform a needed operation, explain the limitation instead of trying a Cursor-native tool.\n</system_constraint>"
+		constraint = "<system_constraint>\nThis gateway has no local workspace or shell. Use the tools declared by the client for workspace operations. Equivalent Cursor-native grep, read, and shell requests can be forwarded to a declared client tool. If no compatible client tool is available, explain the limitation.\n</system_constraint>"
 	}
 	prompt := constraint + "\n\n" + request.Prompt
 	if request.Mode == FullReplay && request.System != "" {
